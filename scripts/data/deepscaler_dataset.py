@@ -38,14 +38,14 @@ def make_map_fn(split: str):
     Returns:
         Function that processes individual dataset examples
     """
-    def process_fn(example: Dict[str, Any], idx: int) -> Optional[Dict[str, Any]]:
+    def process_fn(example: Dict[str, Any], idx: int, data_source: str) -> Optional[Dict[str, Any]]:
         question = example.pop('problem')
         instruction = "Let's think step by step and output the final answer within \\boxed{}."
         question = f"{question} {instruction}"
         answer = example.pop('answer')
 
         data = {
-            "data_source": "",
+            "data_source": data_source,
             "prompt": [{
                 "role": "user",
                 "content": question
@@ -66,22 +66,21 @@ def make_map_fn(split: str):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description='Process datasets for DeepScaler training')
-    parser.add_argument('--local_dir', default=os.path.expanduser('~/deepscaler/data'),
-                       help='Local directory to save processed datasets')
-    parser.add_argument('--hdfs_dir', default=None,
-                       help='Optional HDFS directory to copy datasets to')
+    parser.add_argument('--local_dir', default=os.path.expanduser('~/deepscaler/data'), help='Local directory to save processed datasets')
+    parser.add_argument('--hdfs_dir', default=None, help='Optional HDFS directory to copy datasets to')
     args = parser.parse_args()
 
     local_dir = args.local_dir
     hdfs_dir = args.hdfs_dir
     
     # Make local directory if it doesn't exist
-    makedirs(local_dir)
+    makedirs(local_dir, exist_ok=True)
 
     # Initialize datasets
     train_datasets = [TrainDataset.DEEPSCALER]
     train_dataset = load_dataset(train_datasets[0])
-    test_datasets = [TestDataset.AIME, TestDataset.AMC, TestDataset.MATH, TestDataset.MINERVA, TestDataset.OLYMPIAD_BENCH]
+    # test_datasets = [TestDataset.AIME_24, TestDataset.AMC, TestDataset.MATH, TestDataset.MINERVA, TestDataset.OLYMPIAD_BENCH]
+    test_datasets = [TestDataset.AIME_25, TestDataset.HMMT_202502, TestDataset.AIMO2_Reference]
     
     test_datasets_data = [load_dataset(d) for d in test_datasets]
 
@@ -89,28 +88,46 @@ if __name__ == '__main__':
     train_data: List[Dict[str, Any]] = []
     process_fn = make_map_fn('train')
     for idx, example in enumerate(train_dataset):
-        processed_example = process_fn(example, idx)
+        processed_example = process_fn(example, idx, data_source=train_datasets[0].value)
         if processed_example is not None:
             train_data.append(processed_example)
 
-    # Process and save each test dataset separately
+    # Process and save each test dataset separately   
     for test_dataset, test_data_list in zip(test_datasets, test_datasets_data):
+        dataset_name = test_dataset.value.lower()
+        file_path = os.path.join(local_dir, f'{dataset_name}.parquet')
+
+        # 如果文件已存在，跳过处理
+        if os.path.exists(file_path):
+            print(f"file {file_path} already exists, skipping processing.")
+            continue
+
+        # 处理数据
         test_data: List[Dict[str, Any]] = []
         process_fn = make_map_fn('test')
         for idx, example in enumerate(test_data_list):
-            processed_example = process_fn(example, idx)
+            processed_example = process_fn(example, idx, data_source=test_dataset.value)
             if processed_example is not None:
                 test_data.append(processed_example)
 
-        dataset_name = test_dataset.value.lower()
+        # 保存数据
         test_df = pd.DataFrame(test_data)
-        test_df.to_parquet(os.path.join(local_dir, f'{dataset_name}.parquet'))
+        test_df.to_parquet(file_path)
         print(f"{dataset_name} test data size:", len(test_data))
+
 
     # Save training dataset
     print("train data size:", len(train_data))
-    train_df = pd.DataFrame(train_data)
-    train_df.to_parquet(os.path.join(local_dir, 'train.parquet'))
+    dataset_name = train_datasets[0].value.lower()
+    file_path = os.path.join(local_dir, f'{dataset_name}.parquet')
+
+    # 如果文件已存在，跳过处理
+    if os.path.exists(file_path):
+        print(f"file {file_path} already exists, skipping processing.")
+    else:
+        # 保存数据
+        train_df = pd.DataFrame(train_data)
+        train_df.to_parquet(file_path)
 
     # Optionally copy to HDFS
     if hdfs_dir is not None:
