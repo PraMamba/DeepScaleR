@@ -19,7 +19,7 @@ class TrainDataset(enum.Enum):
     NUMINA_OLYMPIAD = 'OLYMPIAD'  # Unique Olympiad problems from NUMINA
     MATH = 'MATH'  # Dan Hendrycks Math Problems
     STILL = 'STILL'  # STILL dataset
-    DEEPSCALER = 'DEEPSCALER'  # DeepScaler (AIME, AMC, OMNI_MATH, MATH, STILL)
+    DEEPSCALER = 'DeepScaleR-Preview-Dataset'  # DeepScaler (AIME, AMC, OMNI_MATH, MATH, STILL)
 
 
 class TestDataset(enum.Enum):
@@ -27,11 +27,14 @@ class TestDataset(enum.Enum):
     
     Contains identifiers for datasets used to evaluate model performance.
     """
-    AIME = 'AIME'  # American Invitational Mathematics Examination
-    AMC = 'AMC'    # American Mathematics Competition  
-    MATH = 'MATH'  # Math 500 problems
+    AIME_24 = 'AIME-2024'  # American Invitational Mathematics Examination
+    AMC = 'AMC_2022-2023'    # American Mathematics Competition  
+    MATH = 'MATH-500'  # Math 500 problems
     MINERVA = 'MINERVA'  # Minerva dataset
     OLYMPIAD_BENCH = 'OLYMPIAD_BENCH'  # Olympiad benchmark problems
+    AIME_25 = 'AIME-2025'
+    HMMT_202502 = 'HMMT-202502'
+    AIMO2_Reference = 'AIMO-2_Reference'
 
 """Type alias for either training or testing dataset types."""
 Dataset = Union[TrainDataset, TestDataset]
